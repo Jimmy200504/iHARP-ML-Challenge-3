@@ -9,5 +9,6 @@ Therefore, the results for the evaluation metrics of the baseline model may vary
 
 3. ***Refer to the zipped submission files to understand the expectations:***
 - Example 1: model_submission.zip contains only the model.py, which is the baseline model in this case.
-- Example 2: model_submission-2.zip contains ALL files as outlined under the "Expected Submission Files" on Codabench. These include model.py, model.pkl, requirements.txt, and README.md
+- Example 2: model_submission-2.zip contains ALL files as outlined under the "Expected Submission Files" on Codabench. These include model.py, model.pkl, requirements.txt, and README.md.
+  
   ***Both types of submissions will be executed appropriately in Codabench***

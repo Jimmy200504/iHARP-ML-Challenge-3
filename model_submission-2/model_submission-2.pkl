@@ -1,0 +1,23 @@
+ #This is a dummy pickle file
+
+ import pickle
+
+    # Data to be pickled
+    data_to_save = {
+        "name": "Alice",
+        "age": 30,
+        "cities_visited": ["New York", "London", "Paris"]
+    }
+
+    # Save the data to a .pkl file
+    with open("sample_data.pkl", "wb") as f:
+        pickle.dump(data_to_save, f)
+
+    print("Data saved to sample_data.pkl")
+
+    # Load the data from the .pkl file
+    with open("sample_data.pkl", "rb") as f:
+        loaded_data = pickle.load(f)
+
+    print("Data loaded from sample_data.pkl:")
+    print(loaded_data)

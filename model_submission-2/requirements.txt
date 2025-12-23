@@ -1,0 +1,36 @@
+# Requirements for the flood-forecasting baseline model in this repository
+
+# Note: This is a general whitelist for packages
+# 
+#
+# Those marked with an asterisk (*) are the Python packages referenced by the baseline script
+# (core algorithm and model training). Add versions (==x.y.z)after you verify the working versions in your environment.
+
+
+pytorch
+tensorflow
+*numpy
+scikit-learn
+keras
+torch
+open-clip-torch
+torchvision
+transformers
+*pandas
+Pillow
+*scipy
+tqdm
+pyarrow
+duckdb
+matplotlib
+xgboost
+nflows
+lightgbm
+seaborn
+iminuit
+timm
+torchaudio
+catboost
+plotly
+opencv-python-headless
+albumentations

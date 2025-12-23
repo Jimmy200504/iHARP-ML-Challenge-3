@@ -4,7 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the iHARP ML Challenge 2 repository focused on "Predicting Coastal Flooding Events" as part of the "Modelling Out Of Distribution" theme. The challenge involves predicting coastal flooding using historical sea level data from 12 coastal stations along the US East Coast.
+This is the iHARP ML Challenge 2 repository focused on "Predicting Coastal Flooding Events" as part of the "Modelling Out Of Distribution" theme.
+
+### Background and Motivation
+The US East Coast is vulnerable to storm surge-driven extreme flooding. The National Data Buoy Center (NDBC) provides high-resolution data from offshore and coastal buoys, offering 70+ years of tidal variability and sea level measurements. The challenge is to leverage AI/ML methods to predict coastal flooding events across different spatial locations, accounting for the complex interplay between large-scale atmospheric/ocean dynamics and local conditions.
+
+### Challenge Structure
+Participants develop models to predict coastal flooding using historical sea level data from 12 coastal stations (1950-2020). The focus is on out-of-distribution (OOD) modeling across both spatial (different stations) and temporal (different time periods) dimensions.
 
 ## Data Architecture
 
@@ -12,6 +18,16 @@ This is the iHARP ML Challenge 2 repository focused on "Predicting Coastal Flood
 - **Main data**: `NEUSTG_19502020_12stations.mat` (MATLAB format, 13.7MB)
   - Contains hourly sea level measurements (1950-2020) for 12 coastal stations
   - Variables: `lattg`, `lontg`, `sltg` (sea level time series), `sname` (station names), `t` (time in MATLAB datenum)
+  - Each station has at least 80% hourly records from 1950-2020 (number of records may vary slightly)
+
+### Dataset Characteristics
+**Important**: The dataset exhibits:
+- **Seasonality**: Periodic patterns in sea level variation
+- **Noise**: Random fluctuations in measurements
+- **Auto-correlation**: Values correlated with previous time steps
+- **Non-stationarity**: Statistical properties change over time
+
+Models should account for these properties when developing prediction algorithms.
 
 ### Station Split (Fixed for OOD Evaluation)
 - **Training stations (9)**: Annapolis, Atlantic_City, Charleston, Washington, Wilmington, Eastport, Portland, Sewells_Point, Sandy_Hook
@@ -21,7 +37,15 @@ This is the iHARP ML Challenge 2 repository focused on "Predicting Coastal Flood
 ### Seed Files
 - `Seed_Coastal_Stations.txt`: List of all 12 station names
 - `Seed_Coastal_Stations_Thresholds.mat`: Official flooding thresholds per station
-- `Seed_Historical_Time_Intervals.txt`: Example historical time windows for evaluation
+- `Seed_Historical_Time_Intervals.txt`: 15 pre-selected 7-day historical time intervals for evaluation
+
+### Global Model Expectations
+- **Development dataset**: 2520 total prediction entries
+  - Calculation: 12 stations × 15 historical windows × 14 prediction days
+  - 9 training stations, 3 testing stations (for OOD evaluation)
+- **Hidden test dataset**: 840 entries (used in final phase)
+  - Calculation: 4 hidden stations × 15 historical windows × 14 prediction days
+  - Hidden stations are completely separate from the 12 development stations
 
 ## Model Submission Structure
 
@@ -62,10 +86,11 @@ Output CSV must contain:
    - `sea_level_3d_mean`: 3-day rolling mean
    - `sea_level_7d_mean`: 7-day rolling mean
 
-3. **Flood Labeling**:
-   - Threshold = mean(sea_level) + 1.5 * std(sea_level) per station
-   - Flood event: any hourly value exceeds threshold on that day
-   - Binary classification: Any flood in 14-day forecast window → label=1
+3. **Flood Labeling** (Binary: 1=Flooding, 0=Non-flooding):
+   - Threshold = mean(sea_level) + 1.5 * std(sea_level) per station (baseline uses this; official thresholds in .mat file)
+   - **Daily flood determination**: A day is marked as flooding if ANY hour (out of 24) has a flooding event
+   - Hourly flood event: sea_level measurement exceeds the flooding threshold
+   - Binary classification target: Any flood in 14-day forecast window → label=1
 
 ### Baseline Model Architecture
 - **Model**: XGBoost binary classifier (falls back to sklearn GradientBoostingClassifier if XGBoost unavailable)
@@ -78,8 +103,23 @@ Output CSV must contain:
 
 ## Evaluation Workflow
 
+### Evaluation Phases
+
+#### Development Phase
+- **Purpose**: Model development and refinement
+- **Dataset**: 12 stations (9 training, 3 testing) with 15 pre-selected historical windows
+- **Submission limits**: Up to 5 submissions per day allowed
+- **Leaderboard**: Participants can submit one score, which can be replaced with better scores
+- **Feedback**: Provided continuously throughout the development phase
+
+#### Final Phase
+- **Activation**: Starts automatically at the end of the challenge
+- **Dataset**: Hidden test dataset with 4 undisclosed coastal stations (840 entries)
+- **Submission**: Participant's last/preferred submission is evaluated on hidden data
+- **Scoring**: Conducted secretly by organizers, final scores posted to leaderboard
+
 ### Local Testing
-The baseline notebook (`baseline_model_xgboost_v3.ipynb`) demonstrates:
+The baseline code (`baseline_model_xgboost_v3.py`) demonstrates:
 1. Loading MAT file using scipy
 2. Converting MATLAB datenum to Python datetime
 3. Station selection and feature engineering
@@ -99,10 +139,16 @@ The baseline notebook (`baseline_model_xgboost_v3.ipynb`) demonstrates:
    - Outputs `scores.json`
 
 ### Metrics
-- **AUC** (primary): Area under ROC curve
-- **Accuracy**: Correct predictions / total predictions
-- **F1 Score**: Harmonic mean of precision/recall
-- **MCC**: Matthews correlation coefficient (handles class imbalance)
+Models are evaluated based on:
+1. **F1 Score**: Harmonic mean of precision/recall (primary metric per README)
+2. **Accuracy**: Correct predictions / total predictions
+3. **MCC**: Matthews correlation coefficient (handles class imbalance well)
+4. **AUC**: Area under ROC curve (also computed by scoring program)
+
+**Expected Outputs**: For each 14-day prediction window following each 7-day historical interval:
+- Binary predictions or probabilities
+- Confusion matrix (TP, FP, TN, FN)
+- All evaluation metrics listed above
 
 ## Key Implementation Notes
 
@@ -128,9 +174,12 @@ The `build_windows()` function in baseline model:
 - Creates unique keys: `station|hist_start|future_start` for alignment
 
 ### Important Caveats
-1. Baseline uses alternative thresholds (mean + 1.5*std). Official thresholds are in `Seed_Coastal_Stations_Thresholds.mat`
-2. Local evaluation results may differ from Codabench due to fixed train/test split
-3. Final phase uses hidden dataset with same OOD evaluation methodology
+1. **Threshold source**: Baseline uses alternative thresholds (mean + 1.5*std). Official thresholds are in `Seed_Coastal_Stations_Thresholds.mat`
+2. **Temporal granularity**: Input data is hourly, but models should predict on daily intervals (convert hourly → daily)
+3. **Global model requirement**: Model should predict across ALL stations (not station-specific models)
+4. **Evaluation variance**: Local evaluation results may differ from Codabench due to fixed train/test split
+5. **Hidden dataset**: Final phase uses 4 completely hidden stations with same OOD evaluation methodology
+6. **Time window flexibility**: Participants can use the 15 seed intervals OR define custom 7-day historical windows for additional validation
 
 ## Python Dependencies
 
@@ -149,7 +198,7 @@ iHARP-ML-Challenge-3/
 ├── Seed_Coastal_Stations.txt               # Station names
 ├── Seed_Coastal_Stations_Thresholds.mat    # Official flood thresholds
 ├── Seed_Historical_Time_Intervals.txt      # Example time windows
-├── baseline_model_xgboost_v3.ipynb         # Reference notebook
+├── baseline_model_xgboost_v3.py        # Reference code
 ├── model_submission/                        # Minimal submission example
 │   └── model.py
 ├── model_submission-2/                      # Full submission example
